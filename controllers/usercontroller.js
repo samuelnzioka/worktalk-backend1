@@ -11,7 +11,7 @@ const Comment = require('../models/comment');
 const AuditLog = require('../models/auditlog');
 const { getClientIP, getUserAgent, generateToken } = require('../utils/helpers');
 const { validatePublicUsername, validatePassword } = require('../utils/validators');
-const { sendVerificationEmail } = require('../services/emailService');
+const { sendVerificationEmail } = require('../services/emailservice');
 
 /**
  * Get user public profile

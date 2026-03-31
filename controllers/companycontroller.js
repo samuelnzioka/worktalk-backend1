@@ -10,7 +10,7 @@ const Post = require('../models/post');
 const CompanyEmployee = require('../models/companyemployee');
 const User = require('../models/user');
 const AuditLog = require('../models/auditlog');
-const { sendCompanyVerificationEmail } = require('../services/emailService');
+const { sendCompanyVerificationEmail } = require('../services/emailservice');
 const { generateSlug, getClientIP, getUserAgent, paginate } = require('../utils/helpers');
 const { validateCompanyName, validateEmailDomain, validateDepartmentName } = require('../utils/validators');
 
