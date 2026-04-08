@@ -62,11 +62,18 @@ app.use(helmet({
 
 // CORS configuration
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: [
+        'https://ajiratalk.pages.dev',      // Your Cloudflare frontend
+        'https://worktalk-backend2.onrender.com', // Backend itself
+        'http://localhost:3000',            // Local development
+        'http://localhost:3001',            // Alternative local port
+        'http://127.0.0.1:3000',           // Local development alternative
+        'http://127.0.0.1:3001'            // Alternative local port
+    ],
     credentials: true,
-    optionsSuccessStatus: 200,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    optionsSuccessStatus: 200
 }));
 
 // Custom security headers
@@ -123,6 +130,27 @@ const registerLimiter = rateLimit({
 app.use('/api/', globalLimiter);
 
 // ==================== Routes ====================
+
+// Handle preflight requests
+app.options('*', (req, res) => {
+    const allowedOrigins = [
+        'https://ajiratalk.pages.dev',
+        'https://worktalk-backend2.onrender.com',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:3001'
+    ];
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        res.setHeader('Access-Control-Max-Age', '86400');
+    }
+    res.status(204).send();
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {

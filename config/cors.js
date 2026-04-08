@@ -4,11 +4,13 @@
  */
 
 const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001'
+    'https://ajiratalk.pages.dev',      // Your Cloudflare frontend
+    'https://worktalk-backend2.onrender.com', // Backend itself
+    'http://localhost:3000',            // Local development
+    'http://localhost:3001',            // Alternative local port
+    'http://127.0.0.1:3000',           // Local development alternative
+    'http://127.0.0.1:3001',            // Alternative local port
+    process.env.FRONTEND_URL            // Environment variable fallback
 ].filter(Boolean);
 
 const corsOptions = {
