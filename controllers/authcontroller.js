@@ -52,10 +52,6 @@ const register = async (req, res) => {
             });
         }
 
-        // Create verification token
-        const emailVerificationToken = generateToken();
-        const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
         // Create user with public profile
         const user = await User.create({
             name,
@@ -69,17 +65,12 @@ const register = async (req, res) => {
                 usernameModerationStatus: 'approved'
             }],
             activeProfileId: null, // Will be set after creation
-            emailVerificationToken,
-            emailVerificationExpires,
-            isEmailVerified: false
+            isEmailVerified: true // Auto-verify for now
         });
 
         // Set active profile
         user.activeProfileId = user.profiles[0]._id;
         await user.save();
-
-        // Send verification email
-        await sendVerificationEmail(email, emailVerificationToken, name);
 
         // Log registration
         await AuditLog.log({
@@ -92,7 +83,7 @@ const register = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Registration successful. Please check your email to verify your account.',
+            message: 'Registration successful! You can now log in.',
             userId: user._id
         });
     } catch (error) {
@@ -133,17 +124,12 @@ const registerEmployee = async (req, res) => {
 
         if (!user) {
             // Create new user
-            const emailVerificationToken = generateToken();
-            const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
             user = await User.create({
                 name,
                 email,
                 password,
                 profiles: [],
-                emailVerificationToken,
-                emailVerificationExpires,
-                isEmailVerified: false,
+                isEmailVerified: true, // Auto-verify for now
                 role: 'employee'
             });
         }
@@ -223,11 +209,6 @@ const registerEmployee = async (req, res) => {
         company.employeeCount += 1;
         await company.save();
 
-        // Send verification email if new user
-        if (!user.isEmailVerified) {
-            await sendVerificationEmail(email, user.emailVerificationToken, name);
-        }
-
         // Log registration
         await AuditLog.log({
             userId: user._id,
@@ -239,7 +220,7 @@ const registerEmployee = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Employee account created successfully. Please check your email to verify your account.',
+            message: 'Employee account created successfully! You can now log in.',
             userId: user._id
         });
     } catch (error) {
