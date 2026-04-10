@@ -96,7 +96,7 @@ const register = async (req, res) => {
             accessToken,
             refreshToken,
             user: userData,
-            redirectTo: '/dashboard.html'
+            redirectTo: '/index.html'
         });
     } catch (error) {
         console.error('Registration error:', error);
@@ -245,7 +245,7 @@ const registerEmployee = async (req, res) => {
             accessToken,
             refreshToken,
             user: userData,
-            redirectTo: '/dashboard.html'
+            redirectTo: '/index.html'
         });
     } catch (error) {
         console.error('Employee registration error:', error);
@@ -334,7 +334,7 @@ const login = async (req, res) => {
             accessToken,
             refreshToken,
             user: userData,
-            redirectTo: user.role === 'company_admin' ? '/company-dashboard.html' : '/dashboard.html'
+            redirectTo: user.role === 'company_admin' ? '/company-dashboard.html' : '/index.html'
         });
     } catch (error) {
         console.error('Login error:', error);
