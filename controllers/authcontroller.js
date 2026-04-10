@@ -72,6 +72,15 @@ const register = async (req, res) => {
         user.activeProfileId = user.profiles[0]._id;
         await user.save();
 
+        // Generate tokens for automatic login after registration
+        const { accessToken, refreshToken } = generateTokenPair(user);
+
+        // Get user data (without password)
+        const userData = user.toJSON();
+        delete userData.password;
+        delete userData.emailVerificationToken;
+        delete userData.resetPasswordToken;
+
         // Log registration
         await AuditLog.log({
             userId: user._id,
@@ -83,8 +92,11 @@ const register = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Registration successful! You can now log in.',
-            userId: user._id
+            message: 'Registration successful!',
+            accessToken,
+            refreshToken,
+            user: userData,
+            redirectTo: '/dashboard.html'
         });
     } catch (error) {
         console.error('Registration error:', error);
@@ -209,6 +221,15 @@ const registerEmployee = async (req, res) => {
         company.employeeCount += 1;
         await company.save();
 
+        // Generate tokens for automatic login after employee registration
+        const { accessToken, refreshToken } = generateTokenPair(user);
+
+        // Get user data (without password)
+        const userData = user.toJSON();
+        delete userData.password;
+        delete userData.emailVerificationToken;
+        delete userData.resetPasswordToken;
+
         // Log registration
         await AuditLog.log({
             userId: user._id,
@@ -220,8 +241,11 @@ const registerEmployee = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Employee account created successfully! You can now log in.',
-            userId: user._id
+            message: 'Employee account created successfully!',
+            accessToken,
+            refreshToken,
+            user: userData,
+            redirectTo: '/dashboard.html'
         });
     } catch (error) {
         console.error('Employee registration error:', error);
