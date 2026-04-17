@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { protect, companyAdminOnly } = require('../middleware/authMiddleware');
+const { protect, companyAdminOnly } = require('../middleware/authmiddleware');
 const {
     getusersettings,
     updateusersettings,
