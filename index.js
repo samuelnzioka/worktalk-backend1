@@ -29,6 +29,7 @@ const userRoutes = require('./routes/userroutes');
 const adminRoutes = require('./routes/adminroutes');
 const profileRoutes = require('./routes/profileroutes');
 const inviteRoutes = require('./routes/inviteroutes');
+const settingsRoutes = require('./routes/settingsroutes');
 
 // Import middleware
 const errorMiddleware = require('./middleware/errormiddleware');
@@ -173,6 +174,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/invites', inviteRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // 404 handler for undefined routes
 app.use('*', (req, res) => {
