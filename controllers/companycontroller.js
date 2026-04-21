@@ -306,7 +306,7 @@ const registerCompany = async (req, res) => {
             refreshToken,
             user: userData,
             companyId: company._id,
-            redirectTo: '/index.html'
+            redirectTo: '/company-dashboard.html'
         });
     } catch (error) {
         console.error('Company registration error:', error);
