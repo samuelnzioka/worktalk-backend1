@@ -11,6 +11,7 @@ const CompanyEmployee = require('../models/companyemployee');
 const User = require('../models/user');
 const AuditLog = require('../models/auditlog');
 const { sendCompanyVerificationEmail } = require('../services/emailservice');
+const { generateTokenPair } = require('../config/auth');
 const { generateSlug, getClientIP, getUserAgent, paginate } = require('../utils/helpers');
 const { validateCompanyName, validateEmailDomain, validateDepartmentName } = require('../utils/validators');
 
@@ -130,7 +131,8 @@ const registerCompany = async (req, res) => {
             contactName,
             contactEmail,
             contactPhone,
-            departments
+            departments,
+            adminPassword
         } = req.body;
         
         // Validate company name
@@ -230,21 +232,81 @@ const registerCompany = async (req, res) => {
         company.departmentCount = departmentsList.length;
         await company.save();
         
-        // Send verification email to admin
-        await sendCompanyVerificationEmail(contactEmail, name);
+        // Check if user with contact email already exists
+        const existingUser = await User.findOne({ email: contactEmail.toLowerCase() });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'A user with this email already exists',
+                field: 'contactEmail'
+            });
+        }
+        
+        // Create admin user with company_admin role
+        const adminUser = await User.create({
+            name: contactName,
+            email: contactEmail.toLowerCase(),
+            password: adminPassword,
+            role: 'company_admin',
+            isEmailVerified: true,
+            profiles: [{
+                type: 'employee',
+                username: contactName.replace(/\s+/g, '').toLowerCase(),
+                companyId: company._id,
+                isActive: true
+            }]
+        });
+        
+        // Get first department for admin assignment
+        const firstDepartment = await Department.findOne({ companyId: company._id }).sort({ order: 1 });
+        
+        // Create company employee record for admin
+        await CompanyEmployee.create({
+            user: adminUser._id,
+            company: company._id,
+            department: firstDepartment._id,
+            isVerified: true,
+            verificationMethod: 'admin',
+            verifiedAt: new Date(),
+            verifiedBy: adminUser._id,
+            isActive: true
+        });
+        
+        // Set admin ID on company (employeeCount auto-incremented by CompanyEmployee post-save hook)
+        company.adminId = adminUser._id;
+        await company.save();
+        
+        // Generate tokens for auto-login
+        const { accessToken, refreshToken } = generateTokenPair(adminUser);
+        
+        // Prepare user data for response
+        const userData = adminUser.toJSON();
+        delete userData.password;
+        delete userData.emailVerificationToken;
+        delete userData.resetPasswordToken;
+        
+        // Send verification email to admin (non-blocking)
+        sendCompanyVerificationEmail(contactEmail, name).catch(err => 
+            console.error('Failed to send company verification email:', err)
+        );
         
         // Log registration
         await AuditLog.log({
+            userId: adminUser._id,
             action: 'company_created',
-            details: { companyId: company._id, name, emailDomain, departments: departmentsList.length },
+            details: { companyId: company._id, name, emailDomain, departments: departmentsList.length, adminUserId: adminUser._id },
             ipAddress: getClientIP(req),
             userAgent: getUserAgent(req)
         });
         
         res.status(201).json({
             success: true,
-            message: 'Company registration submitted for review. You will receive an email once verified.',
-            companyId: company._id
+            message: 'Company registered successfully!',
+            accessToken,
+            refreshToken,
+            user: userData,
+            companyId: company._id,
+            redirectTo: '/index.html'
         });
     } catch (error) {
         console.error('Company registration error:', error);

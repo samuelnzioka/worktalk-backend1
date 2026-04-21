@@ -180,6 +180,26 @@ const validateCompanyRegister = [
         .notEmpty().withMessage('Contact email is required')
         .isEmail().withMessage('Please provide a valid email'),
     
+    body('description')
+        .trim()
+        .optional()
+        .isLength({ max: 500 }).withMessage('Description must be at most 500 characters'),
+    
+    body('adminPassword')
+        .trim()
+        .notEmpty().withMessage('Admin password is required')
+        .isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    
+    body('confirmPassword')
+        .trim()
+        .notEmpty().withMessage('Please confirm your password')
+        .custom((value, { req }) => {
+            if (value !== req.body.adminPassword) {
+                throw new Error('Passwords do not match');
+            }
+            return true;
+        }),
+    
     body('departments')
         .custom(value => {
             try {
