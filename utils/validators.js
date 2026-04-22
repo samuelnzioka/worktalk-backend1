@@ -124,7 +124,7 @@ const validateDepartmentName = (name) => {
  */
 const validateEmailDomain = (domain) => {
     if (!domain) {
-        return { isValid: false, message: 'Email domain is required' };
+        return { isValid: true, message: 'Email domain is optional' };
     }
     
     const domainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;

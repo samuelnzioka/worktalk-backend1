@@ -125,14 +125,26 @@ const registerCompany = async (req, res) => {
             name,
             industry,
             emailDomain,
+            companyEmail,
             description,
             website,
             logo,
             contactName,
             contactEmail,
             contactPhone,
+            adminPhone,
             departments,
-            adminPassword
+            adminPassword,
+            emailVerificationCode,
+            taxId,
+            registrationNumber,
+            country,
+            yearFounded,
+            revenueRange,
+            streetAddress,
+            city,
+            postalCode,
+            jobTitle
         } = req.body;
         
         // Validate company name
@@ -145,23 +157,52 @@ const registerCompany = async (req, res) => {
             });
         }
         
-        // Validate email domain
-        const domainValidation = validateEmailDomain(emailDomain);
-        if (!domainValidation.isValid) {
-            return res.status(400).json({
-                success: false,
-                message: domainValidation.message,
-                field: 'emailDomain'
-            });
+        // Auto-extract emailDomain if not provided and not a common provider
+        const commonProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'aol.com', 'icloud.com'];
+        let resolvedEmailDomain = emailDomain;
+        if (!resolvedEmailDomain) {
+            const domainSource = companyEmail || contactEmail;
+            if (domainSource && domainSource.includes('@')) {
+                const extractedDomain = domainSource.split('@')[1].toLowerCase();
+                // Only use as emailDomain if it's not a common provider
+                if (!commonProviders.includes(extractedDomain)) {
+                    resolvedEmailDomain = extractedDomain;
+                }
+            }
         }
         
-        // Check if company exists
-        const existingCompany = await Company.findOne({ $or: [{ name }, { emailDomain }] });
+        // Validate email domain if provided
+        if (resolvedEmailDomain) {
+            const domainValidation = validateEmailDomain(resolvedEmailDomain);
+            if (!domainValidation.isValid) {
+                return res.status(400).json({
+                    success: false,
+                    message: domainValidation.message,
+                    field: 'emailDomain'
+                });
+            }
+        }
+        
+        // Check if company exists by name or emailDomain (only check emailDomain if provided)
+        const existingQuery = [{ name }];
+        if (resolvedEmailDomain) {
+            existingQuery.push({ emailDomain: resolvedEmailDomain });
+        }
+        const existingCompany = await Company.findOne({ $or: existingQuery });
         if (existingCompany) {
             return res.status(400).json({
                 success: false,
                 message: 'Company with this name or email domain already exists',
                 field: existingCompany.name === name ? 'name' : 'emailDomain'
+            });
+        }
+        
+        // Accept any 6-digit email verification code (email sending not yet implemented)
+        if (!emailVerificationCode || !/^[0-9]{6}$/.test(emailVerificationCode)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid 6-digit email verification code is required',
+                field: 'emailVerificationCode'
             });
         }
         
@@ -202,13 +243,25 @@ const registerCompany = async (req, res) => {
             name,
             slug: generateSlug(name),
             industry,
-            emailDomain: emailDomain.toLowerCase(),
+            emailDomain: resolvedEmailDomain ? resolvedEmailDomain.toLowerCase() : undefined,
+            companyEmail: companyEmail ? companyEmail.toLowerCase() : undefined,
             description,
             website,
             logo,
             contactName,
             contactEmail,
             contactPhone,
+            taxId,
+            registrationNumber,
+            country,
+            yearFounded,
+            revenueRange,
+            streetAddress,
+            city,
+            postalCode,
+            jobTitle,
+            emailVerificationCode,
+            isEmailVerified: true,
             isVerified: false,
             settings: {
                 requireVerification: true,
@@ -247,6 +300,7 @@ const registerCompany = async (req, res) => {
             name: contactName,
             email: contactEmail.toLowerCase(),
             password: adminPassword,
+            phone: adminPhone,
             role: 'company_admin',
             isEmailVerified: true,
             profiles: [{
@@ -265,6 +319,7 @@ const registerCompany = async (req, res) => {
             user: adminUser._id,
             company: company._id,
             department: firstDepartment._id,
+            position: jobTitle,
             isVerified: true,
             verificationMethod: 'admin',
             verifiedAt: new Date(),
@@ -294,7 +349,7 @@ const registerCompany = async (req, res) => {
         await AuditLog.log({
             userId: adminUser._id,
             action: 'company_created',
-            details: { companyId: company._id, name, emailDomain, departments: departmentsList.length, adminUserId: adminUser._id },
+            details: { companyId: company._id, name, emailDomain: resolvedEmailDomain, departments: departmentsList.length, adminUserId: adminUser._id },
             ipAddress: getClientIP(req),
             userAgent: getUserAgent(req)
         });

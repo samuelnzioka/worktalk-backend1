@@ -167,9 +167,15 @@ const validateCompanyRegister = [
         .notEmpty().withMessage('Industry is required'),
     
     body('emailDomain')
+        .optional()
         .trim()
-        .notEmpty().withMessage('Email domain is required')
         .matches(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/).withMessage('Invalid email domain format'),
+    
+    body('companyEmail')
+        .optional()
+        .trim()
+        .isEmail().withMessage('Please provide a valid company email')
+        .normalizeEmail(),
     
     body('contactName')
         .trim()
@@ -179,6 +185,14 @@ const validateCompanyRegister = [
         .trim()
         .notEmpty().withMessage('Contact email is required')
         .isEmail().withMessage('Please provide a valid email'),
+    
+    body('contactPhone')
+        .optional()
+        .trim(),
+    
+    body('adminPhone')
+        .optional()
+        .trim(),
     
     body('description')
         .trim()
@@ -212,6 +226,24 @@ const validateCompanyRegister = [
                 throw new Error('Invalid departments format');
             }
         }),
+    
+    body('emailVerificationCode')
+        .trim()
+        .notEmpty().withMessage('Email verification code is required')
+        .isLength({ min: 6, max: 6 }).withMessage('Verification code must be 6 digits')
+        .matches(/^[0-9]{6}$/).withMessage('Verification code must be 6 digits'),
+    
+    body('taxId').optional().trim(),
+    body('registrationNumber').optional().trim(),
+    body('country').optional().trim(),
+    body('yearFounded').optional().isInt({ min: 1800, max: new Date().getFullYear() }).withMessage('Invalid year founded'),
+    body('revenueRange').optional().trim(),
+    body('streetAddress').optional().trim(),
+    body('city').optional().trim(),
+    body('postalCode').optional().trim(),
+    body('jobTitle').optional().trim(),
+    body('website').optional().trim(),
+    body('logo').optional().trim(),
     
     validate
 ];

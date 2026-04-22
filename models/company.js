@@ -37,11 +37,17 @@ const CompanySchema = new mongoose.Schema({
         default: '🏢'
     },
     
-    // Email domain for verification (e.g., @safaricom.co.ke)
+    // Email domain for verification (e.g., safaricom.co.ke)
     emailDomain: {
         type: String,
-        required: true,
-        unique: true,
+        sparse: true,
+        lowercase: true
+    },
+    
+    // Company email (separate from admin contact email)
+    companyEmail: {
+        type: String,
+        trim: true,
         lowercase: true
     },
     
@@ -146,7 +152,29 @@ const CompanySchema = new mongoose.Schema({
     // Contact information
     contactName: String,
     contactEmail: String,
-    contactPhone: String
+    contactPhone: String,
+    
+    // Business details
+    taxId: String,
+    registrationNumber: String,
+    country: String,
+    yearFounded: Number,
+    revenueRange: String,
+    
+    // Address
+    streetAddress: String,
+    city: String,
+    postalCode: String,
+    
+    // Admin job title at company
+    jobTitle: String,
+    
+    // Email verification
+    emailVerificationCode: String,
+    isEmailVerified: {
+        type: Boolean,
+        default: false
+    }
 }, {
     timestamps: true,
     toJSON: { virtuals: true },
@@ -201,6 +229,7 @@ CompanySchema.virtual('employees', {
 
 // Method to check if email domain matches
 CompanySchema.methods.isCompanyEmail = function(email) {
+    if (!this.emailDomain) return false;
     return email.toLowerCase().endsWith(`@${this.emailDomain}`);
 };
 
