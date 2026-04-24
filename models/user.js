@@ -40,6 +40,20 @@ const UserSchema = new mongoose.Schema({
         default: true
     },
     
+    // Linked accounts (for switching between public and company accounts)
+    linkedAccounts: [{
+        type: {
+            type: String,
+            enum: ['public', 'company'],
+            required: true
+        },
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        }
+    }],
+    
     // Multiple profiles under one account
     profiles: [{
         type: {

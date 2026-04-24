@@ -285,6 +285,9 @@ const registerCompany = async (req, res) => {
         company.departmentCount = departmentsList.length;
         await company.save();
         
+        // Get logged-in public user
+        const publicUser = req.user;
+        
         // Check if user with contact email already exists
         const existingUser = await User.findOne({ email: contactEmail.toLowerCase() });
         if (existingUser) {
@@ -303,12 +306,26 @@ const registerCompany = async (req, res) => {
             phone: adminPhone,
             role: 'company_admin',
             isEmailVerified: true,
+            linkedAccounts: [{
+                type: 'public',
+                userId: publicUser._id
+            }],
             profiles: [{
                 type: 'employee',
                 username: contactName.replace(/\s+/g, '').toLowerCase(),
                 companyId: company._id,
                 isActive: true
             }]
+        });
+        
+        // Link public user to company admin user (bidirectional)
+        await User.findByIdAndUpdate(publicUser._id, {
+            $push: {
+                linkedAccounts: {
+                    type: 'company',
+                    userId: adminUser._id
+                }
+            }
         });
         
         // Get first department for admin assignment

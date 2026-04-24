@@ -32,7 +32,7 @@ const {
 // Public routes
 router.get('/', getCompanies);
 router.get('/:slug', getCompanyBySlug);
-router.post('/register', validateCompanyRegister, registerCompany);
+router.post('/register', protect, validateCompanyRegister, registerCompany);
 router.get('/:companyId/departments', getCompanyDepartments);
 
 // Department posts (public)
