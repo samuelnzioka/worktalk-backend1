@@ -243,7 +243,7 @@ const registerCompany = async (req, res) => {
             name,
             slug: generateSlug(name),
             industry,
-            emailDomain: resolvedEmailDomain ? resolvedEmailDomain.toLowerCase() : undefined,
+            emailDomain: resolvedEmailDomain ? resolvedEmailDomain.toLowerCase() : '',
             companyEmail: companyEmail ? companyEmail.toLowerCase() : undefined,
             description,
             website,
