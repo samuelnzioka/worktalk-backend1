@@ -320,13 +320,14 @@ const registerCompany = async (req, res) => {
         
         // Link public user to company admin user (bidirectional)
         await User.findByIdAndUpdate(publicUser._id, {
+            $setOnInsert: { linkedAccounts: [] },
             $push: {
                 linkedAccounts: {
                     type: 'company',
                     userId: adminUser._id
                 }
             }
-        });
+        }, { upsert: false });
         
         // Get first department for admin assignment
         const firstDepartment = await Department.findOne({ companyId: company._id }).sort({ order: 1 });
@@ -382,9 +383,12 @@ const registerCompany = async (req, res) => {
         });
     } catch (error) {
         console.error('Company registration error:', error);
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
         res.status(500).json({
             success: false,
-            message: 'Failed to register company'
+            message: 'Failed to register company',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 };
