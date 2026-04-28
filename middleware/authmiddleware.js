@@ -53,6 +53,13 @@ const protect = async (req, res, next) => {
         }
         
         req.user = user;
+        // Attach companyId and role from token if present (for company admin/employee context)
+        if (decoded.companyId) {
+            req.user.companyId = decoded.companyId;
+        }
+        if (decoded.role) {
+            req.user.role = decoded.role;
+        }
         next();
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
