@@ -239,135 +239,141 @@ const registerCompany = async (req, res) => {
         }
         
         // Create company
-        const company = await Company.create({
-            name,
-            slug: generateSlug(name),
-            industry,
-            emailDomain: resolvedEmailDomain ? resolvedEmailDomain.toLowerCase() : undefined,
-            companyEmail: companyEmail ? companyEmail.toLowerCase() : undefined,
-            description,
-            website,
-            logo,
-            contactName,
-            contactEmail,
-            contactPhone,
-            taxId,
-            registrationNumber,
-            country,
-            yearFounded,
-            revenueRange,
-            streetAddress,
-            city,
-            postalCode,
-            jobTitle,
-            emailVerificationCode,
-            isEmailVerified: true,
-            isVerified: false,
-            settings: {
-                requireVerification: true,
-                allowAnonymousPosts: true,
-                moderationEnabled: true,
-                autoApproveEmployees: false
-            }
-        });
+        let company;
+        try {
+            company = await Company.create({
+                name,
+                slug: generateSlug(name),
+                industry,
+                emailDomain: resolvedEmailDomain ? resolvedEmailDomain.toLowerCase() : undefined,
+                companyEmail: companyEmail ? companyEmail.toLowerCase() : undefined,
+                description,
+                website,
+                logo,
+                contactName,
+                contactEmail,
+                contactPhone,
+                taxId,
+                registrationNumber,
+                country,
+                yearFounded,
+                revenueRange,
+                streetAddress,
+                city,
+                postalCode,
+                jobTitle,
+                emailVerificationCode,
+                isEmailVerified: true,
+                isVerified: false,
+                settings: {
+                    requireVerification: true,
+                    allowAnonymousPosts: true,
+                    moderationEnabled: true,
+                    autoApproveEmployees: false
+                }
+            });
+        } catch (err) {
+            console.error('Step FAILED: Create company:', err.message);
+            return res.status(400).json({ success: false, message: 'Failed to create company: ' + err.message, step: 'create_company' });
+        }
         
         // Create departments
-        for (let i = 0; i < departmentsList.length; i++) {
-            await Department.create({
-                name: departmentsList[i],
-                companyId: company._id,
-                order: i,
-                isActive: true
-            });
+        try {
+            for (let i = 0; i < departmentsList.length; i++) {
+                await Department.create({
+                    name: departmentsList[i],
+                    companyId: company._id,
+                    order: i,
+                    isActive: true
+                });
+            }
+        } catch (err) {
+            console.error('Step FAILED: Create departments:', err.message);
+            return res.status(400).json({ success: false, message: 'Failed to create departments: ' + err.message, step: 'create_departments' });
         }
         
         // Update department count
         company.departmentCount = departmentsList.length;
-        await company.save();
-        
-        // Get logged-in public user
-        const publicUser = req.user;
-        
-        // Check if user with contact email already exists
-        const existingUser = await User.findOne({ email: contactEmail.toLowerCase() });
-        if (existingUser) {
-            return res.status(400).json({
-                success: false,
-                message: 'A user with this email already exists',
-                field: 'contactEmail'
-            });
+        try {
+            await company.save();
+        } catch (err) {
+            console.error('Step FAILED: Update department count:', err.message);
+            return res.status(400).json({ success: false, message: 'Failed to update department count: ' + err.message, step: 'update_department_count' });
         }
         
-        // Create admin user with company_admin role
-        const adminUser = await User.create({
-            name: contactName,
-            email: contactEmail.toLowerCase(),
-            password: adminPassword,
-            phone: adminPhone,
-            role: 'company_admin',
-            isEmailVerified: true,
-            linkedAccounts: [{
-                type: 'public',
-                userId: publicUser._id
-            }],
-            profiles: [{
-                type: 'employee',
-                username: contactName.replace(/\s+/g, '').toLowerCase(),
-                companyId: company._id,
-                isActive: true
-            }]
-        });
-        
-        // Link public user to company admin user (bidirectional)
-        await User.findByIdAndUpdate(publicUser._id, {
-            $setOnInsert: { linkedAccounts: [] },
-            $push: {
-                linkedAccounts: {
-                    type: 'company',
-                    userId: adminUser._id
-                }
-            }
-        }, { upsert: false });
+        // Get logged-in public user — they become the company admin
+        const publicUser = req.user;
+        console.log('Public user becoming company admin:', publicUser?._id, publicUser?.email);
         
         // Get first department for admin assignment
         const firstDepartment = await Department.findOne({ companyId: company._id }).sort({ order: 1 });
         
-        // Create company employee record for admin
-        await CompanyEmployee.create({
-            user: adminUser._id,
-            company: company._id,
-            department: firstDepartment._id,
-            position: jobTitle,
-            isVerified: true,
-            verificationMethod: 'admin',
-            verifiedAt: new Date(),
-            verifiedBy: adminUser._id,
-            isActive: true
-        });
+        // Create CompanyEmployee record for the public user (admin + employee)
+        try {
+            await CompanyEmployee.create({
+                user: publicUser._id,
+                company: company._id,
+                department: firstDepartment._id,
+                position: jobTitle,
+                isVerified: true,
+                verificationMethod: 'admin',
+                verifiedAt: new Date(),
+                verifiedBy: publicUser._id,
+                isActive: true
+            });
+        } catch (err) {
+            console.error('Step FAILED: Create company employee record:', err.message);
+            return res.status(400).json({ success: false, message: 'Failed to create company employee record: ' + err.message, step: 'create_company_employee' });
+        }
         
         // Set admin ID on company (employeeCount auto-incremented by CompanyEmployee post-save hook)
-        company.adminId = adminUser._id;
+        company.adminId = publicUser._id;
         await company.save();
         
-        // Generate tokens for auto-login
-        const { accessToken, refreshToken } = generateTokenPair(adminUser);
+        // Update the public user: add employee profile for this company
+        try {
+            await User.findByIdAndUpdate(publicUser._id, {
+                $push: {
+                    profiles: {
+                        type: 'employee',
+                        username: publicUser.name.replace(/\s+/g, '').toLowerCase(),
+                        companyId: company._id,
+                        departmentId: firstDepartment._id,
+                        isActive: true
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('Step FAILED: Add employee profile to user:', err.message);
+            // Non-fatal, the CompanyEmployee record is the primary link
+        }
+        
+        // Re-fetch user with updated profiles for token generation
+        const updatedUser = await User.findById(publicUser._id);
+        
+        // Generate tokens for auto-login (with company context in token)
+        const { accessToken, refreshToken } = generateTokenPair({
+            ...updatedUser.toObject(),
+            role: 'company_admin',
+            companyId: company._id
+        });
         
         // Prepare user data for response
-        const userData = adminUser.toJSON();
+        const userData = updatedUser.toJSON();
         delete userData.password;
         delete userData.emailVerificationToken;
         delete userData.resetPasswordToken;
         
         // Send verification email to admin (non-blocking)
-        sendCompanyVerificationEmail(contactEmail, name).catch(err => 
+        sendCompanyVerificationEmail(publicUser.email, name).catch(err => 
             console.error('Failed to send company verification email:', err)
         );
         
         // Log registration
         await AuditLog.log({
-            userId: adminUser._id,
+            userId: publicUser._id,
             action: 'company_created',
-            details: { companyId: company._id, name, emailDomain: resolvedEmailDomain, departments: departmentsList.length, adminUserId: adminUser._id },
+            details: { companyId: company._id, name, emailDomain: resolvedEmailDomain, departments: departmentsList.length, adminUserId: publicUser._id },
             ipAddress: getClientIP(req),
             userAgent: getUserAgent(req)
         });

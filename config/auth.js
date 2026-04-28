@@ -61,6 +61,11 @@ const generateTokenPair = (user) => {
         role: user.role
     };
     
+    // Include companyId if present (for company admin/employee tokens)
+    if (user.companyId) {
+        payload.companyId = user.companyId;
+    }
+    
     return {
         accessToken: generateAccessToken(payload),
         refreshToken: generateRefreshToken(payload)
