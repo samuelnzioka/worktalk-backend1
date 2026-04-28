@@ -280,8 +280,13 @@ const registerCompany = async (req, res) => {
         // Create departments
         try {
             for (let i = 0; i < departmentsList.length; i++) {
+                const deptSlug = departmentsList[i]
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-|-$/g, '');
                 await Department.create({
                     name: departmentsList[i],
+                    slug: deptSlug,
                     companyId: company._id,
                     order: i,
                     isActive: true
@@ -289,6 +294,8 @@ const registerCompany = async (req, res) => {
             }
         } catch (err) {
             console.error('Step FAILED: Create departments:', err.message);
+            // Clean up: remove the company we just created since departments failed
+            try { await Company.findByIdAndDelete(company._id); } catch (e) { console.error('Cleanup company failed:', e.message); }
             return res.status(400).json({ success: false, message: 'Failed to create departments: ' + err.message, step: 'create_departments' });
         }
         
