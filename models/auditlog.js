@@ -18,7 +18,7 @@ const AuditLogSchema = new mongoose.Schema({
             'login', 'login_success', 'login_failed', 'logout', 'logout_all',
             'register', 'register_employee', 'register_company',
             'email_verified', 'email_verification_sent',
-            'password_reset_requested', 'password_reset_completed',
+            'password_reset_requested', 'password_reset_completed', 'password_changed', 'account_deleted',
             
             // Company actions
             'company_created', 'company_updated', 'company_verified', 'company_deactivated',
@@ -36,7 +36,10 @@ const AuditLogSchema = new mongoose.Schema({
             'content_moderated', 'content_removed', 'user_suspended', 'user_banned',
             
             // Profile actions
-            'profile_switched', 'username_changed', 'profile_created',
+            'profile_switched', 'username_changed', 'profile_created', 'profile_updated',
+            
+            // Settings actions
+            'settings_updated', 'company_settings_updated',
             
             // Security events
             'account_locked', 'account_unlocked', 'suspicious_activity'
