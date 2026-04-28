@@ -98,9 +98,14 @@ const updateUserProfile = async (req, res) => {
         });
     } catch (error) {
         console.error('Update profile error:', error);
+        console.error('Error details:', error.message);
+        if (error.name === 'ValidationError') {
+            console.error('Validation errors:', Object.values(error.errors).map(e => e.message));
+        }
         res.status(500).json({
             success: false,
-            message: 'Failed to update profile'
+            message: 'Failed to update profile',
+            error: error.message
         });
     }
 };
