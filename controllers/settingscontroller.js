@@ -57,11 +57,15 @@ const getusersettings = async (req, res) => {
 const updateusersettings = async (req, res) => {
     try {
         const { section, settings } = req.body;
+        console.log('Update settings request - section:', section, 'settings:', settings);
+        console.log('User ID:', req.user._id);
         
         let usersettingsdoc = await usersettings.findOne({ user: req.user._id });
+        console.log('Existing settings doc:', usersettingsdoc ? 'found' : 'not found');
         
         if (!usersettingsdoc) {
             usersettingsdoc = new usersettings({ user: req.user._id });
+            console.log('Created new settings doc');
         }
         
         // Update specific section
@@ -70,17 +74,20 @@ const updateusersettings = async (req, res) => {
                 ...usersettingsdoc[section],
                 ...settings
             };
+            console.log('Updated section:', section, 'new value:', usersettingsdoc[section]);
         }
         
         await usersettingsdoc.save();
+        console.log('Settings saved successfully');
         
-        await auditlog.create({
+        // Create audit log (non-blocking)
+        auditlog.create({
             user: req.user._id,
             action: 'settings_updated',
             details: { section },
             ipAddress: getClientIP(req),
             userAgent: getUserAgent(req)
-        });
+        }).catch(err => console.error('Audit log creation failed:', err));
         
         res.json({
             success: true,
@@ -89,9 +96,15 @@ const updateusersettings = async (req, res) => {
         });
     } catch (error) {
         console.error('Update user settings error:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        if (error.errors) {
+            console.error('Validation errors:', Object.values(error.errors).map(e => e.message));
+        }
         res.status(500).json({
             success: false,
-            message: 'Failed to update settings'
+            message: 'Failed to update settings',
+            error: error.message
         });
     }
 };
@@ -102,8 +115,11 @@ const updateusersettings = async (req, res) => {
 const updateuserprofile = async (req, res) => {
     try {
         const { name, bio, username, avatar } = req.body;
+        console.log('Update profile request - name:', name, 'username:', username, 'bio:', bio, 'avatar:', avatar ? 'present' : 'not present');
+        console.log('User ID:', req.user._id);
         
         const userdoc = await user.findById(req.user._id);
+        console.log('User doc found:', userdoc ? 'yes' : 'no');
         
         if (name) {
             userdoc.name = name;
@@ -111,21 +127,25 @@ const updateuserprofile = async (req, res) => {
         
         // Update active profile's bio and username
         const activeProfile = userdoc.getActiveProfile();
+        console.log('Active profile:', activeProfile ? 'found' : 'not found');
         if (activeProfile) {
             if (bio !== undefined) activeProfile.bio = bio;
             if (username) activeProfile.username = username;
             if (avatar) activeProfile.avatar = avatar;
+            console.log('Updated active profile');
         }
         
         await userdoc.save();
+        console.log('User saved successfully');
         
-        await auditlog.create({
+        // Create audit log (non-blocking)
+        auditlog.create({
             user: req.user._id,
             action: 'profile_updated',
             details: { name, bio, username },
             ipAddress: getClientIP(req),
             userAgent: getUserAgent(req)
-        });
+        }).catch(err => console.error('Audit log creation failed:', err));
         
         const userData = userdoc.toJSON();
         delete userData.password;
@@ -137,9 +157,15 @@ const updateuserprofile = async (req, res) => {
         });
     } catch (error) {
         console.error('Update profile error:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        if (error.errors) {
+            console.error('Validation errors:', Object.values(error.errors).map(e => e.message));
+        }
         res.status(500).json({
             success: false,
-            message: 'Failed to update profile'
+            message: 'Failed to update profile',
+            error: error.message
         });
     }
 };
