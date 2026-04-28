@@ -92,8 +92,7 @@ const CompanySchema = new mongoose.Schema({
     // Invite codes management
     inviteCodes: [{
         code: {
-            type: String,
-            unique: true
+            type: String
         },
         departmentId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -188,6 +187,8 @@ CompanySchema.index({ emailDomain: 1 });
 CompanySchema.index({ industry: 1 });
 CompanySchema.index({ isVerified: 1 });
 CompanySchema.index({ isActive: 1 });
+// Sparse unique index on invite codes: ensures codes are globally unique, but skips nulls (empty arrays)
+CompanySchema.index({ 'inviteCodes.code': 1 }, { sparse: true, unique: true });
 
 // Generate slug from name before saving
 CompanySchema.pre('save', function(next) {

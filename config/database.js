@@ -16,6 +16,20 @@ const connectDB = async () => {
 
         console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
+        // Drop stale unique index on inviteCodes.code that conflicts with sparse unique index
+        // This index was auto-created by the old schema and causes E11000 duplicate key errors
+        // when multiple companies have empty inviteCodes arrays (null values)
+        try {
+            const indexes = await mongoose.connection.db.collection('companies').indexes();
+            const staleIndex = indexes.find(idx => idx.name === 'inviteCodes.code_1');
+            if (staleIndex) {
+                await mongoose.connection.db.collection('companies').dropIndex('inviteCodes.code_1');
+                console.log('✅ Dropped stale inviteCodes.code_1 index (replaced by sparse unique index)');
+            }
+        } catch (idxErr) {
+            console.log('ℹ️ Index cleanup skipped:', idxErr.message);
+        }
+
         // Handle connection events
         mongoose.connection.on('error', (err) => {
             console.error('MongoDB connection error:', err);
