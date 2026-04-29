@@ -65,13 +65,14 @@ const switchProfile = async (req, res) => {
         user.activeProfileId = profileId;
         await user.save();
         
-        await AuditLog.create({
+        // Create audit log (non-blocking)
+        AuditLog.create({
             user: user._id,
             action: 'profile_switched',
             details: { profileId },
             ipAddress: getClientIP(req),
             userAgent: getUserAgent(req)
-        });
+        }).catch(err => console.error('Audit log creation failed:', err));
         
         // Get updated user data
         const updatedUser = await User.findById(user._id)
@@ -79,10 +80,18 @@ const switchProfile = async (req, res) => {
             .populate('profiles.companyId', 'name slug icon')
             .populate('profiles.departmentId', 'name');
         
+        // Get the switched profile to determine routing
+        const switchedProfile = updatedUser.profiles.find(p => p._id.toString() === profileId);
+        
         res.json({
             success: true,
             message: 'Profile switched successfully',
-            user: updatedUser
+            user: updatedUser,
+            switchedProfile: {
+                type: switchedProfile?.type,
+                companyId: switchedProfile?.companyId?._id?.toString(),
+                isCompanyAdmin: updatedUser.role === 'company_admin'
+            }
         });
     } catch (error) {
         console.error('Switch profile error:', error);

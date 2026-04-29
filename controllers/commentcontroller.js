@@ -42,11 +42,23 @@ const createComment = async (req, res) => {
         let username = '';
         let profileId = '';
         
+        // Get active profile
+        const activeProfile = req.user.getActiveProfile();
+        
         // Check permissions based on post type
         if (post.postType === 'company_space') {
-            // Check if user is employee of this department
+            // Only employee profiles can comment in company spaces
+            if (activeProfile.type !== 'employee') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Only employee profiles can comment in company spaces'
+                });
+            }
+            
+            // Check if user is employee of this specific company/department
             const employee = await CompanyEmployee.findOne({
                 user: req.user._id,
+                company: post.companyId,
                 department: post.departmentId,
                 isVerified: true,
                 isActive: true
@@ -55,11 +67,11 @@ const createComment = async (req, res) => {
             if (!employee) {
                 return res.status(403).json({
                     success: false,
-                    message: 'Only employees of this department can comment here'
+                    message: 'Only employees of this company can comment here'
                 });
             }
             
-            // Get user's profile for this company
+            // Get user's employee profile for this company
             const userProfile = req.user.profiles.find(p => 
                 p.type === 'employee' && p.companyId?.toString() === post.companyId?.toString()
             );
@@ -68,14 +80,13 @@ const createComment = async (req, res) => {
                 profileId = userProfile._id;
                 username = isAnonymous ? 'Anonymous Employee' : userProfile.username;
             } else {
-                profileId = req.user.profiles[0]?._id;
-                username = isAnonymous ? 'Anonymous' : req.user.profiles[0]?.username || 'User';
+                profileId = activeProfile._id;
+                username = isAnonymous ? 'Anonymous Employee' : activeProfile.username;
             }
         } else {
             // Public timeline - any authenticated user can comment
-            const userProfile = req.user.getActiveProfile();
-            profileId = userProfile._id;
-            username = isAnonymous ? 'Anonymous' : userProfile.username;
+            profileId = activeProfile._id;
+            username = isAnonymous ? 'Anonymous' : activeProfile.username;
         }
         
         // Sanitize content
