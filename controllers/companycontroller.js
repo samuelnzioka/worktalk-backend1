@@ -262,9 +262,11 @@ const registerCompany = async (req, res) => {
                 city,
                 postalCode,
                 jobTitle,
+                isVerified: true,
+                verifiedAt: new Date(),
+                verifiedBy: publicUser._id,
                 emailVerificationCode,
                 isEmailVerified: true,
-                isVerified: false,
                 settings: {
                     requireVerification: true,
                     allowAnonymousPosts: true,
@@ -337,9 +339,10 @@ const registerCompany = async (req, res) => {
         company.adminId = publicUser._id;
         await company.save();
         
-        // Update the public user: add employee profile for this company
+        // Update the public user: add employee profile for this company and set role to company_admin
         try {
             await User.findByIdAndUpdate(publicUser._id, {
+                $set: { role: 'company_admin' },
                 $push: {
                     profiles: {
                         type: 'employee',
@@ -355,7 +358,7 @@ const registerCompany = async (req, res) => {
             // Non-fatal, the CompanyEmployee record is the primary link
         }
         
-        // Re-fetch user with updated profiles for token generation
+        // Re-fetch user with updated profiles and role for token generation
         const updatedUser = await User.findById(publicUser._id);
         
         // Generate tokens for auto-login (with company context in token)
