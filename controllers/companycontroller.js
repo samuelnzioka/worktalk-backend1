@@ -42,7 +42,7 @@ const getCompanies = async (req, res) => {
             .sort({ name: 1 })
             .skip(pagination.skip)
             .limit(pagination.limit)
-            .select('name slug industry icon logo employeeCount departmentCount totalPosts');
+            .select('name slug industry icon logo description employeeCount departmentCount totalPosts');
         
         // Get department counts for each company
         const companiesWithStats = await Promise.all(companies.map(async (company) => {
