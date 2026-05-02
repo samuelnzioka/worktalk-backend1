@@ -437,13 +437,59 @@ const getCompanyDepartments = async (req, res) => {
  */
 const getCompanyStats = async (req, res) => {
     try {
-        const companyId = req.user.companyId || req.query.companyId;
+        // Get company ID from multiple sources
+        let companyId = req.params.companyId;
+        
+        // If not in params, check query
+        if (!companyId) {
+            companyId = req.query.companyId;
+        }
+        
+        // If still not found, get from user's profile
+        if (!companyId && req.user) {
+            const activeProfile = req.user.getActiveProfile();
+            if (activeProfile && activeProfile.companyId) {
+                companyId = activeProfile.companyId;
+            }
+        }
+        
+        // If still no company ID, check if user is company admin
+        if (!companyId && req.user.role === 'company_admin') {
+            // Find company where user is admin
+            const company = await Company.findOne({ adminId: req.user._id });
+            if (company) {
+                companyId = company._id;
+            }
+        }
+        
+        if (!companyId) {
+            return res.status(400).json({
+                success: false,
+                message: 'Company ID required'
+            });
+        }
         
         const company = await Company.findById(companyId);
         if (!company) {
             return res.status(404).json({
                 success: false,
                 message: 'Company not found'
+            });
+        }
+        
+        // Check if user has access to this company
+        const isCompanyAdmin = company.adminId?.toString() === req.user._id.toString();
+        const isEmployee = await CompanyEmployee.findOne({
+            user: req.user._id,
+            company: companyId,
+            isVerified: true,
+            isActive: true
+        });
+        
+        if (!isCompanyAdmin && !isEmployee) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
             });
         }
         
