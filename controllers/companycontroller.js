@@ -313,11 +313,6 @@ const registerCompany = async (req, res) => {
             console.error('Step FAILED: Update department count:', err.message);
             return res.status(400).json({ success: false, message: 'Failed to update department count: ' + err.message, step: 'update_department_count' });
         }
-        
-        // Get logged-in public user — they become the company admin
-        const publicUser = req.user;
-        console.log('Public user becoming company admin:', publicUser?._id, publicUser?.email);
-        
         // Get first department for admin assignment
         const firstDepartment = await Department.findOne({ companyId: company._id }).sort({ order: 1 });
         
