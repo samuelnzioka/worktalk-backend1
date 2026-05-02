@@ -238,6 +238,10 @@ const registerCompany = async (req, res) => {
             }
         }
         
+        // Get logged-in public user — they become company admin
+        const publicUser = req.user;
+        console.log('Public user becoming company admin:', publicUser?._id, publicUser?.email);
+        
         // Create company
         let company;
         try {
