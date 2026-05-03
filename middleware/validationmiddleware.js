@@ -258,6 +258,83 @@ const validateDepartment = [
         .isLength({ min: 2, max: 50 }).withMessage('Department name must be 2-50 characters')
         .matches(/^[a-zA-Z0-9\s\-&]+$/).withMessage('Department name contains invalid characters'),
     
+    body('description').optional().trim().isLength({ max: 1000 }),
+    body('icon').optional().trim(),
+    body('headOfDepartment').optional().isMongoId().withMessage('Invalid head of department ID'),
+    body('isHidden').optional().isBoolean().withMessage('isHidden must be boolean'),
+    body('order').optional().isInt({ min: 0 }).withMessage('Order must be a non-negative integer'),
+    
+    validate
+];
+
+/**
+ * General settings validation
+ */
+const validateGeneralSettings = [
+    body('name').optional().trim().isLength({ min: 2, max: 100 }).withMessage('Company name must be 2-100 characters'),
+    body('industry').optional().trim().notEmpty().withMessage('Industry cannot be empty'),
+    body('description').optional().trim().isLength({ max: 5000 }).withMessage('Description too long'),
+    body('logo').optional().trim(),
+    body('banner').optional().trim(),
+    body('website').optional().trim(),
+    body('contactEmail').optional().trim().isEmail().withMessage('Invalid contact email'),
+    body('contactPhone').optional().trim(),
+    body('streetAddress').optional().trim(),
+    body('city').optional().trim(),
+    body('postalCode').optional().trim(),
+    body('country').optional().trim(),
+    
+    validate
+];
+
+/**
+ * Company settings validation (moderation, employee management, privacy)
+ */
+const validateCompanySettings = [
+    // Basic
+    body('requireVerification').optional().isBoolean(),
+    body('autoApproveEmployees').optional().isBoolean(),
+    // Moderation
+    body('postModeration').optional().isIn(['auto_approve', 'manual_review']).withMessage('Invalid post moderation value'),
+    body('allowAnonymousPosts').optional().isBoolean(),
+    body('commentModeration').optional().isIn(['auto_approve', 'manual_review']).withMessage('Invalid comment moderation value'),
+    body('flaggedContentReview').optional().isIn(['manual', 'auto_hide']).withMessage('Invalid flagged content review value'),
+    body('blockedKeywords').optional().isArray().withMessage('Blocked keywords must be an array'),
+    body('autoSuspendAfterFlags').optional().isInt({ min: 1, max: 100 }).withMessage('Auto suspend after flags must be 1-100'),
+    body('maxCommentsPerDay').optional().isInt({ min: 0 }).withMessage('Max comments per day must be >= 0'),
+    body('maxPostsPerDay').optional().isInt({ min: 0 }).withMessage('Max posts per day must be >= 0'),
+    // Employee management
+    body('verificationMethod').optional().isIn(['email_domain', 'invite_code', 'manual']).withMessage('Invalid verification method'),
+    body('allowEmployeeRegistration').optional().isBoolean(),
+    body('employeeDepartureHandling').optional().isIn(['anonymize', 'delete', 'keep']).withMessage('Invalid departure handling value'),
+    body('departmentAssignment').optional().isIn(['admin_assigns', 'employee_chooses']).withMessage('Invalid department assignment value'),
+    // Privacy
+    body('companySpaceVisibility').optional().isIn(['public', 'employees_only']).withMessage('Invalid visibility value'),
+    body('showEmployeeCount').optional().isBoolean(),
+    body('showDepartmentDetails').optional().isBoolean(),
+    body('allowExternalSharing').optional().isBoolean(),
+    
+    validate
+];
+
+/**
+ * Suspend employee validation
+ */
+const validateSuspendEmployee = [
+    body('duration').optional().isInt({ min: 0 }).withMessage('Duration must be a non-negative integer (days)'),
+    body('reason').optional().trim().isLength({ max: 500 }).withMessage('Reason must be at most 500 characters'),
+    
+    validate
+];
+
+/**
+ * Reorder departments validation
+ */
+const validateReorderDepartments = [
+    body('order').isArray().withMessage('Order must be an array'),
+    body('order.*.departmentId').isMongoId().withMessage('Invalid department ID'),
+    body('order.*.order').isInt({ min: 0 }).withMessage('Order must be a non-negative integer'),
+    
     validate
 ];
 
@@ -326,6 +403,10 @@ module.exports = {
     validateComment,
     validateCompanyRegister,
     validateDepartment,
+    validateGeneralSettings,
+    validateCompanySettings,
+    validateSuspendEmployee,
+    validateReorderDepartments,
     validateUsername,
     validatePasswordChange,
     validatePagination,

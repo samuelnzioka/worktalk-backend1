@@ -130,21 +130,96 @@ const CompanySchema = new mongoose.Schema({
     
     // Company settings
     settings: {
+        // Employee verification
         requireVerification: {
-            type: Boolean,
-            default: true
-        },
-        allowAnonymousPosts: {
-            type: Boolean,
-            default: true
-        },
-        moderationEnabled: {
             type: Boolean,
             default: true
         },
         autoApproveEmployees: {
             type: Boolean,
             default: false
+        },
+        
+        // Moderation settings
+        moderation: {
+            postModeration: {
+                type: String,
+                enum: ['auto_approve', 'manual_review'],
+                default: 'auto_approve'
+            },
+            allowAnonymousPosts: {
+                type: Boolean,
+                default: true
+            },
+            commentModeration: {
+                type: String,
+                enum: ['auto_approve', 'manual_review'],
+                default: 'auto_approve'
+            },
+            flaggedContentReview: {
+                type: String,
+                enum: ['manual', 'auto_hide'],
+                default: 'manual'
+            },
+            blockedKeywords: [{
+                type: String
+            }],
+            autoSuspendAfterFlags: {
+                type: Number,
+                default: 5
+            },
+            maxCommentsPerDay: {
+                type: Number,
+                default: 0
+            },
+            maxPostsPerDay: {
+                type: Number,
+                default: 0
+            }
+        },
+        
+        // Employee management settings
+        employeeManagement: {
+            verificationMethod: {
+                type: String,
+                enum: ['email_domain', 'invite_code', 'manual'],
+                default: 'invite_code'
+            },
+            allowEmployeeRegistration: {
+                type: Boolean,
+                default: true
+            },
+            employeeDepartureHandling: {
+                type: String,
+                enum: ['anonymize', 'delete', 'keep'],
+                default: 'anonymize'
+            },
+            departmentAssignment: {
+                type: String,
+                enum: ['admin_assigns', 'employee_chooses'],
+                default: 'employee_chooses'
+            }
+        },
+        
+        // Privacy settings
+        privacy: {
+            companySpaceVisibility: {
+                type: String,
+                enum: ['public', 'employees_only'],
+                default: 'employees_only'
+            },
+            showEmployeeCount: {
+                type: Boolean,
+                default: true
+            },
+            showDepartmentDetails: {
+                type: Boolean,
+                default: true
+            },
+            allowExternalSharing: {
+                type: Boolean,
+                default: false
+            }
         }
     },
     

@@ -57,6 +57,21 @@ const CompanyEmployeeSchema = new mongoose.Schema({
         type: String
     },
     
+    // Suspension
+    suspension: {
+        isSuspended: {
+            type: Boolean,
+            default: false
+        },
+        reason: String,
+        suspendedAt: Date,
+        suspendedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        suspendedUntil: Date
+    },
+    
     // Status
     isActive: {
         type: Boolean,

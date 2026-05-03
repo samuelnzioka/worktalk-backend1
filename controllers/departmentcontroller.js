@@ -42,10 +42,15 @@ const createDepartment = async (req, res) => {
         // Get current department count for ordering
         const deptCount = await Department.countDocuments({ companyId });
         
+        const { icon, headOfDepartment, isHidden } = req.body;
+        
         const department = await Department.create({
             name,
             companyId,
             description,
+            icon,
+            headOfDepartment,
+            isHidden: isHidden || false,
             order: deptCount,
             isActive: true
         });
@@ -81,7 +86,7 @@ const createDepartment = async (req, res) => {
 const updateDepartment = async (req, res) => {
     try {
         const { departmentId } = req.params;
-        const { name, description, icon, order } = req.body;
+        const { name, description, icon, order, headOfDepartment, isHidden } = req.body;
         
         const department = await Department.findById(departmentId);
         if (!department) {
@@ -121,13 +126,15 @@ const updateDepartment = async (req, res) => {
         if (description !== undefined) department.description = description;
         if (icon !== undefined) department.icon = icon;
         if (order !== undefined) department.order = order;
+        if (headOfDepartment !== undefined) department.headOfDepartment = headOfDepartment;
+        if (isHidden !== undefined) department.isHidden = isHidden;
         
         await department.save();
         
         await AuditLog.log({
             userId: req.user._id,
             action: 'department_updated',
-            details: { departmentId, updates: { name, description, icon, order } },
+            details: { departmentId, updates: { name, description, icon, order, headOfDepartment, isHidden } },
             ipAddress: getClientIP(req),
             userAgent: getUserAgent(req)
         });
@@ -269,9 +276,50 @@ const getDepartmentPosts = async (req, res) => {
     }
 };
 
+/**
+ * Reorder departments (company admin)
+ */
+const reorderDepartments = async (req, res) => {
+    try {
+        const { companyId } = req.params;
+        const { order } = req.body; // Array of { departmentId, order }
+        
+        if (!Array.isArray(order)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Order must be an array of { departmentId, order }'
+            });
+        }
+        
+        for (const item of order) {
+            await Department.findByIdAndUpdate(item.departmentId, { order: item.order });
+        }
+        
+        await AuditLog.log({
+            userId: req.user._id,
+            action: 'departments_reordered',
+            details: { companyId, order },
+            ipAddress: getClientIP(req),
+            userAgent: getUserAgent(req)
+        });
+        
+        res.json({
+            success: true,
+            message: 'Departments reordered successfully'
+        });
+    } catch (error) {
+        console.error('Reorder departments error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to reorder departments'
+        });
+    }
+};
+
 module.exports = {
     createDepartment,
     updateDepartment,
     deleteDepartment,
-    getDepartmentPosts
+    getDepartmentPosts,
+    reorderDepartments
 };
