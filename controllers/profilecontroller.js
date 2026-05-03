@@ -77,11 +77,20 @@ const switchProfile = async (req, res) => {
         // Get updated user data
         const updatedUser = await User.findById(user._id)
             .select('-password -emailVerificationToken -resetPasswordToken')
-            .populate('profiles.companyId', 'name slug icon')
+            .populate('profiles.companyId', 'name slug icon adminId')
             .populate('profiles.departmentId', 'name');
         
         // Get the switched profile to determine routing
         const switchedProfile = updatedUser.profiles.find(p => p._id.toString() === profileId);
+        
+        // Check if user is admin of the specific company in this profile
+        const isCompanyAdmin = switchedProfile?.companyId?.adminId?.toString() === user._id.toString();
+        
+        console.log('Switching profile:', profileId);
+        console.log('Switched profile:', switchedProfile);
+        console.log('User ID:', user._id);
+        console.log('Company admin ID:', switchedProfile?.companyId?.adminId);
+        console.log('Is company admin:', isCompanyAdmin);
         
         res.json({
             success: true,
@@ -90,7 +99,7 @@ const switchProfile = async (req, res) => {
             switchedProfile: {
                 type: switchedProfile?.type,
                 companyId: switchedProfile?.companyId?._id?.toString(),
-                isCompanyAdmin: updatedUser.role === 'company_admin'
+                isCompanyAdmin: isCompanyAdmin
             }
         });
     } catch (error) {
