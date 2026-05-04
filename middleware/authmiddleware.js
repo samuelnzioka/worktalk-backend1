@@ -33,9 +33,16 @@ const protect = async (req, res, next) => {
     try {
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('=== AUTH MIDDLEWARE DEBUG ===');
+        console.log('Decoded token ID:', decoded.id);
+        console.log('Token companyId:', decoded.companyId);
+        console.log('Token role:', decoded.role);
         
         // Get user from database
         const user = await User.findById(decoded.id).select('-password');
+        
+        console.log('Found user from DB:', user ? { id: user._id, email: user.email, name: user.name, role: user.role } : 'NOT FOUND');
+        console.log('============================');
         
         if (!user) {
             return res.status(401).json({
