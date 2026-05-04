@@ -243,34 +243,16 @@ const registerCompany = async (req, res) => {
         console.log('=== COMPANY REGISTRATION DEBUG ===');
         console.log('Raw req.user:', JSON.stringify({ id: req.user?._id, email: req.user?.email, name: req.user?.name, role: req.user?.role }, null, 2));
         console.log('Request headers auth:', req.headers.authorization?.substring(0, 50) + '...');
-        console.log('Contact name from form:', contactName);
-        console.log('Contact email from form:', contactEmail);
+        console.log('Form contact name:', contactName);
+        console.log('Form contact email:', contactEmail);
         console.log('=================================');
 
-        // SAFEGUARD: Ensure the logged-in user's email matches the contact email provided
-        // This prevents the bug where wrong user gets assigned as admin
-        if (contactEmail && contactEmail.toLowerCase() !== publicUser.email.toLowerCase()) {
-            console.error('SECURITY ALERT: Contact email does not match logged-in user email');
-            console.error(`Form contact email: ${contactEmail}`);
-            console.error(`Logged-in user email: ${publicUser.email}`);
-            return res.status(400).json({
-                success: false,
-                message: 'Contact email must match your logged-in account email',
-                field: 'contactEmail',
-                debug: {
-                    providedContact: contactEmail,
-                    loggedInEmail: publicUser.email
-                }
-            });
-        }
-
-        // SAFEGUARD: Warn if contact name doesn't match user name (allow for variations)
-        if (contactName && contactName.toLowerCase() !== publicUser.name.toLowerCase()) {
-            console.warn('WARNING: Contact name does not match logged-in user name');
-            console.warn(`Form contact name: ${contactName}`);
-            console.warn(`Logged-in user name: ${publicUser.name}`);
-            // Don't block this, just warn, as users might use different names for their company
-        }
+        // FIX: Use the logged-in user's email and name directly to prevent frontend token cache issues
+        // The form values can be different (e.g., company-specific contact), but the admin will always be the logged-in user
+        const actualContactEmail = publicUser.email;
+        const actualContactName = publicUser.name;
+        
+        console.log('Using logged-in user info:', { email: actualContactEmail, name: actualContactName });
         
         // Create company
         let company;
@@ -284,8 +266,8 @@ const registerCompany = async (req, res) => {
                 description,
                 website,
                 logo,
-                contactName,
-                contactEmail,
+                contactName: actualContactName,
+                contactEmail: actualContactEmail,
                 contactPhone,
                 taxId,
                 registrationNumber,
