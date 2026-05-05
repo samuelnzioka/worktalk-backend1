@@ -27,7 +27,8 @@ const {
     suspendEmployee,
     unsuspendEmployee,
     getCompanyAnalytics,
-    exportCompanyData
+    exportCompanyData,
+    fixCompanyAdminData
 } = require('../controllers/companycontroller');
 const {
     createDepartment,
@@ -75,6 +76,9 @@ router.post('/:companyId/departments', protect, companyAdminOnly(), validateDepa
 router.put('/departments/:departmentId', protect, companyAdminOnly(), validateDepartment, updateDepartment);
 router.delete('/departments/:departmentId', protect, companyAdminOnly(), deleteDepartment);
 router.put('/:companyId/departments/reorder', protect, companyAdminOnly(), validateReorderDepartments, reorderDepartments);
+
+// Data fix endpoint (call once to fix corrupted admin assignments)
+router.post('/fix-admin-data', protect, fixCompanyAdminData);
 
 // Invite management
 router.post('/:companyId/invites', protect, companyAdminOnly(), generateInvite);

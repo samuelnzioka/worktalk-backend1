@@ -380,7 +380,10 @@ const registerCompany = async (req, res) => {
                         username: publicUser.name.replace(/\s+/g, '').toLowerCase(),
                         companyId: company._id,
                         departmentId: firstDepartment._id,
-                        isActive: true
+                        isActive: true,
+                        isEmployeeVerified: true,
+                        verifiedAt: new Date(),
+                        employeeId: publicUser._id.toString()
                     }
                 }
             });
@@ -1134,6 +1137,156 @@ const exportCompanyData = async (req, res) => {
     }
 };
 
+/**
+ * Fix company admin data (admin-only endpoint to fix corrupted assignments)
+ * Call this endpoint once to clean up all company admin mismatches
+ */
+const fixCompanyAdminData = async (req, res) => {
+    try {
+        const results = {
+            companiesFixed: 0,
+            profilesFixed: 0,
+            profilesRemoved: 0,
+            errors: []
+        };
+
+        // Step 1: Find all companies
+        const companies = await Company.find({});
+        console.log(`Fix script: Found ${companies.length} companies`);
+
+        for (const company of companies) {
+            console.log(`Fix script: Processing company: ${company.name} (${company._id})`);
+
+            // Find all CompanyEmployee records for this company
+            const employees = await CompanyEmployee.find({
+                company: company._id,
+                isVerified: true,
+                isActive: true
+            });
+
+            // Step 2: For each verified employee, ensure they have a correct profile
+            for (const emp of employees) {
+                const empUser = await User.findById(emp.user);
+                if (!empUser) {
+                    results.errors.push(`Employee user not found: ${emp.user}`);
+                    continue;
+                }
+
+                // Check if user has a profile for this company
+                const existingProfile = empUser.profiles.find(p =>
+                    p.companyId && p.companyId.toString() === company._id.toString()
+                );
+
+                if (!existingProfile) {
+                    // Missing profile — add it
+                    const firstDept = await Department.findOne({ companyId: company._id });
+                    empUser.profiles.push({
+                        type: 'employee',
+                        username: empUser.name.replace(/\s+/g, '').toLowerCase(),
+                        companyId: company._id,
+                        departmentId: emp.department || firstDept?._id,
+                        isActive: true,
+                        isEmployeeVerified: true,
+                        verifiedAt: emp.verifiedAt || new Date(),
+                        employeeId: emp._id.toString()
+                    });
+                    await empUser.save();
+                    results.profilesFixed++;
+                    console.log(`Fix script: Added missing profile for ${empUser.name} at ${company.name}`);
+                } else if (!existingProfile.isEmployeeVerified) {
+                    // Profile exists but not verified — fix it
+                    existingProfile.isEmployeeVerified = true;
+                    existingProfile.verifiedAt = emp.verifiedAt || new Date();
+                    await empUser.save();
+                    results.profilesFixed++;
+                    console.log(`Fix script: Verified profile for ${empUser.name} at ${company.name}`);
+                }
+            }
+
+            // Step 3: Remove profiles from users who are NOT employees of this company
+            const validEmployeeIds = employees.map(e => e.user.toString());
+            const usersWithProfile = await User.find({
+                'profiles.companyId': company._id
+            });
+
+            for (const user of usersWithProfile) {
+                if (!validEmployeeIds.includes(user._id.toString())) {
+                    // This user has a profile for this company but is NOT an employee
+                    const before = user.profiles.length;
+                    user.profiles = user.profiles.filter(p =>
+                        !p.companyId || p.companyId.toString() !== company._id.toString()
+                    );
+                    if (user.profiles.length < before) {
+                        await user.save();
+                        results.profilesRemoved++;
+                        console.log(`Fix script: Removed incorrect profile for ${user.name} from ${company.name}`);
+                    }
+                }
+            }
+
+            // Step 4: Ensure adminId is set correctly
+            if (!company.adminId) {
+                const firstEmp = employees[0];
+                if (firstEmp) {
+                    company.adminId = firstEmp.user;
+                    await company.save();
+                    results.companiesFixed++;
+                    console.log(`Fix script: Set admin for ${company.name} to ${firstEmp.user}`);
+                }
+            } else {
+                // Verify adminId user has a CompanyEmployee record
+                const adminEmployee = await CompanyEmployee.findOne({
+                    user: company.adminId,
+                    company: company._id
+                });
+                if (!adminEmployee) {
+                    const firstDept = await Department.findOne({ companyId: company._id });
+                    await CompanyEmployee.create({
+                        user: company.adminId,
+                        company: company._id,
+                        department: firstDept?._id,
+                        position: 'Admin',
+                        isVerified: true,
+                        verificationMethod: 'admin',
+                        verifiedAt: new Date(),
+                        verifiedBy: company.adminId,
+                        isActive: true
+                    });
+                    results.companiesFixed++;
+                    console.log(`Fix script: Created missing CompanyEmployee for admin of ${company.name}`);
+                }
+            }
+        }
+
+        // Step 5: Fix user roles — company admins should have role 'company_admin'
+        const allCompanies = await Company.find({});
+        for (const company of allCompanies) {
+            if (company.adminId) {
+                const adminUser = await User.findById(company.adminId);
+                if (adminUser && adminUser.role !== 'company_admin') {
+                    adminUser.role = 'company_admin';
+                    await adminUser.save();
+                    results.companiesFixed++;
+                    console.log(`Fix script: Updated role for ${adminUser.name} to company_admin`);
+                }
+            }
+        }
+
+        console.log('Fix script completed:', results);
+        res.json({
+            success: true,
+            message: 'Company admin data fixed',
+            results
+        });
+    } catch (error) {
+        console.error('Fix company admin data error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fix company admin data: ' + error.message
+        });
+    }
+};
+
 module.exports = {
     getCompanies,
     getCompanyBySlug,
@@ -1147,5 +1300,6 @@ module.exports = {
     suspendEmployee,
     unsuspendEmployee,
     getCompanyAnalytics,
-    exportCompanyData
+    exportCompanyData,
+    fixCompanyAdminData
 };

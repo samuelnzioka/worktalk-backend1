@@ -309,7 +309,16 @@ const login = async (req, res) => {
         user.lastActive = new Date();
         await user.save();
 
-        // Generate tokens
+        // FIX: If user is company_admin, look up their company and include companyId in token
+        // This ensures the correct company context is established on login
+        if (user.role === 'company_admin') {
+            const adminCompany = await Company.findOne({ adminId: user._id });
+            if (adminCompany) {
+                user.companyId = adminCompany._id;
+            }
+        }
+
+        // Generate tokens (companyId will be included if present on user object)
         const expiry = rememberMe ? '30d' : '7d';
         const { accessToken, refreshToken } = generateTokenPair(user);
 

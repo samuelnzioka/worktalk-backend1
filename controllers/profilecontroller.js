@@ -5,6 +5,7 @@
 
 const User = require('../models/user');
 const AuditLog = require('../models/auditlog');
+const { generateTokenPair } = require('../config/auth');
 const { getClientIP, getUserAgent } = require('../utils/helpers');
 const { validatePublicUsername } = require('../utils/validators');
 
@@ -14,8 +15,8 @@ const { validatePublicUsername } = require('../utils/validators');
 const getProfiles = async (req, res) => {
     try {
         const user = await User.findById(req.user._id)
-            .select('profiles activeProfileId')
-            .populate('profiles.companyId', 'name slug icon')
+            .select('profiles activeProfileId role')
+            .populate('profiles.companyId', 'name slug icon adminId')
             .populate('profiles.departmentId', 'name');
         
         const enhancedProfiles = user.profiles.map(profile => {
@@ -23,6 +24,8 @@ const getProfiles = async (req, res) => {
             if (profile.type === 'employee' && profile.companyId) {
                 profileObj.companyName = profile.companyId.name;
                 profileObj.companySlug = profile.companyId.slug;
+                // Check if this user is the admin of this company
+                profileObj.isCompanyAdmin = profile.companyId.adminId?.toString() === req.user._id.toString();
                 if (profile.departmentId) {
                     profileObj.departmentName = profile.departmentId.name;
                 }
@@ -33,7 +36,8 @@ const getProfiles = async (req, res) => {
         res.json({
             success: true,
             profiles: enhancedProfiles,
-            activeProfileId: user.activeProfileId
+            activeProfileId: user.activeProfileId,
+            userRole: user.role
         });
     } catch (error) {
         console.error('Get profiles error:', error);
@@ -87,10 +91,35 @@ const switchProfile = async (req, res) => {
         const isCompanyAdmin = switchedProfile?.companyId?.adminId?.toString() === user._id.toString();
         
         console.log('Switching profile:', profileId);
-        console.log('Switched profile:', switchedProfile);
+        console.log('Switched profile type:', switchedProfile?.type);
         console.log('User ID:', user._id);
         console.log('Company admin ID:', switchedProfile?.companyId?.adminId);
         console.log('Is company admin:', isCompanyAdmin);
+        
+        // FIX: Generate new tokens with the correct companyId when switching to an employee profile
+        // This ensures subsequent API calls use the correct company context
+        let newAccessToken = null;
+        let newRefreshToken = null;
+        
+        if (switchedProfile?.type === 'employee' && switchedProfile?.companyId?._id) {
+            const tokenPayload = {
+                ...updatedUser.toObject(),
+                companyId: switchedProfile.companyId._id,
+                role: isCompanyAdmin ? 'company_admin' : updatedUser.role
+            };
+            const tokens = generateTokenPair(tokenPayload);
+            newAccessToken = tokens.accessToken;
+            newRefreshToken = tokens.refreshToken;
+        } else if (switchedProfile?.type === 'public') {
+            // Switching to public profile - remove companyId from token
+            const tokenPayload = {
+                ...updatedUser.toObject()
+            };
+            delete tokenPayload.companyId;
+            const tokens = generateTokenPair(tokenPayload);
+            newAccessToken = tokens.accessToken;
+            newRefreshToken = tokens.refreshToken;
+        }
         
         res.json({
             success: true,
@@ -99,8 +128,10 @@ const switchProfile = async (req, res) => {
             switchedProfile: {
                 type: switchedProfile?.type,
                 companyId: switchedProfile?.companyId?._id?.toString(),
+                companyName: switchedProfile?.companyId?.name,
                 isCompanyAdmin: isCompanyAdmin
-            }
+            },
+            ...(newAccessToken ? { accessToken: newAccessToken, refreshToken: newRefreshToken } : {})
         });
     } catch (error) {
         console.error('Switch profile error:', error);
